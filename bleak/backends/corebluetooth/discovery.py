@@ -43,3 +43,30 @@ async def discover(
     devices = cbapp.central_manager_delegate.devices
     return list(devices.values())
 
+
+async def get_connected_by_services(
+    loop: AbstractEventLoop = None, service_uuids: List[str] = None, **kwargs
+) -> List[BLEDevice]:
+    """
+    Return a list of connected devices that have the given list of services
+
+    """
+    loop = loop if loop else asyncio.get_event_loop()
+
+    if not cbapp.central_manager_delegate.enabled:
+        raise BleakError("Bluetooth device is turned off")
+
+    if service_uuids != None:
+        scan_options = {"service_uuids": service_uuids}
+
+    await cbapp.central_manager_delegate.retrieveConnected_(scan_options)
+
+    # CoreBluetooth doesn't explicitly use MAC addresses to identify peripheral
+    # devices because private devices may obscure their MAC addresses. To cope
+    # with this, CoreBluetooth utilizes UUIDs for each peripheral. We'll use
+    # this for the BLEDevice address on macOS
+
+
+    devices = cbapp.central_manager_delegate.devices
+    return list(devices.values())
+

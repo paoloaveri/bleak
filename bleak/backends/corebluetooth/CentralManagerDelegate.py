@@ -141,8 +141,40 @@ class CentralManagerDelegate(NSObject):
         while self._connection_state == CMDConnectionState.PENDING:
             await asyncio.sleep(0)
 
+        self.connected_peripheral_delegate = None
+
         return self._connection_state == CMDConnectionState.DISCONNECTED
 
+    async def retrieveConnected_(self, scan_options) -> List[CBPeripheral]:
+        self.devices = {}
+        service_uuids = []
+        if "service_uuids" in scan_options:
+            service_uuids_str = scan_options["service_uuids"]
+            service_uuids = NSArray.alloc().initWithArray_(
+                list(map(string2uuid, service_uuids_str))
+            )
+
+        peripherals = self.central_manager.retrieveConnectedPeripheralsWithServices_(
+            service_uuids
+        )
+
+        # Add all those peripherals:
+        for peripheral in peripherals:
+            uuid_string = peripheral.identifier().UUIDString()
+
+            if uuid_string in self.devices:
+                device = self.devices[uuid_string]
+            else:
+                address = uuid_string
+                name = peripheral.name() or None
+                details = peripheral
+                device = BLEDeviceCoreBluetooth(address, name, details)
+                self.devices[uuid_string] = device
+
+            logger.debug("Connected device {}: {}".format(uuid_string, device.name))
+
+        return []
+        
     # Protocol Functions
 
     def centralManagerDidUpdateState_(self, centralManager):
@@ -203,9 +235,14 @@ class CentralManagerDelegate(NSObject):
                 peripheral.identifier().UUIDString()
             )
         )
-        peripheralDelegate = PeripheralDelegate.alloc().initWithPeripheral_(peripheral)
-        self.connected_peripheral_delegate = peripheralDelegate
-        self._connection_state = CMDConnectionState.CONNECTED
+        if not self.connected_peripheral_delegate:
+            peripheralDelegate = PeripheralDelegate.alloc().initWithPeripheral_(peripheral)
+            self.connected_peripheral_delegate = peripheralDelegate
+            self._connection_state = CMDConnectionState.CONNECTED
+        else:
+            logger.debug(
+                "centralManager_didConnectPeripheral_ was called, but connected_peripheral_delegate was already populated!"
+            )
 
     def centralManager_didFailToConnectPeripheral_error_(
         self, centralManager: CBCentralManager, peripheral: CBPeripheral, error: NSError

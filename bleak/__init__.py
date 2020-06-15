@@ -57,6 +57,7 @@ elif platform.system() == "Darwin":
         raise BleakError("Bleak requires the CoreBluetooth Framework")
 
     from bleak.backends.corebluetooth.discovery import discover  # noqa
+    from bleak.backends.corebluetooth.discovery import get_connected_by_services
     from bleak.backends.corebluetooth.scanner import (
         BleakScannerCoreBluetooth as BleakScanner,
     )  # noqa

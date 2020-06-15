@@ -62,17 +62,28 @@ class BleakClientCoreBluetooth(BaseBleakClient):
 
         """
         timeout = kwargs.get("timeout", self._timeout)
-        devices = await discover(timeout=timeout, loop=self.loop)
+        devices_central_manager_delegate = cbapp.central_manager_delegate.devices
+        devices = list(devices_central_manager_delegate.values())
+        
         sought_device = list(
             filter(lambda x: x.address.upper() == self.address.upper(), devices)
         )
 
+        # First check if the device is in the connected devices
         if len(sought_device):
             self._device_info = sought_device[0].details
         else:
-            raise BleakError(
-                "Device with address {} was not found".format(self.address)
+            # If not, scan to find it
+            devices = await discover(timeout=timeout, loop=self.loop)
+            sought_device = list(
+                filter(lambda x: x.address.upper() == self.address.upper(), devices)
             )
+            if len(sought_device):
+                self._device_info = sought_device[0].details
+            else:
+                raise BleakError(
+                    "Device with address {} was not found".format(self.address)
+                )
 
         logger.debug("Connecting to BLE device @ {}".format(self.address))
 
